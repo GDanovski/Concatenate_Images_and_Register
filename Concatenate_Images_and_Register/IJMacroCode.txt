@@ -1,0 +1,62 @@
+﻿macro "ConcatAndReg []"
+{
+Dialog.create('Registration Settings');
+Dialog.addNumber('Reference frame:', 1);
+Dialog.addChoice('Reference chanel:', newArray('1','2'), '1');
+Dialog.show();
+
+slice = Dialog.getNumber();
+chanel = Dialog.getChoice();
+
+setBatchMode(true);
+	a =newArray("D:\\Data_after 06_2016\\test\\cell14","D:\\Data_after 06_2016\\test\\cell24");
+	for (i=0; i<a.length; i++) {
+		var path = a[i];
+		var dest = File.getParent(path) + "\\Ready";
+		//Create directory
+		File.makeDirectory(dest);
+		//Add File Name;
+		dest = dest + "\\" + File.getName(path);
+		//Open and concatenate images
+		open(path + "_1.tif");
+		rename("Concatenated Stacks");
+
+		var index = 2;
+
+		while(File.exists(path + "_" + index + ".tif"))
+		{
+			open(path + "_" + index + ".tif");
+			var name2 = getTitle();
+			run("Concatenate...", "  title=[Concatenated Stacks] image1=[Concatenated Stacks] image2="+ name2 + " image3=[-- None --]");
+			index++;
+		}
+
+		//Split color chanels
+		selectWindow("Concatenated Stacks");
+		run("Make Substack...", "delete slices=1-" + nSlices + "-2");
+		rename("Concatenated Stacks1");
+		//set slice
+		selectWindow('Concatenated Stacks');
+		setSlice(slice);
+		selectWindow('Concatenated Stacks1');
+		setSlice(slice);
+		
+		//registration
+		if(chanel==1){
+		run("MultiStackReg", "stack_1=[Concatenated Stacks] action_1=Align file_1=["+dest+"_TransformationMatrices1.txt] stack_2=None action_2=Ignore file_2=[] transformation=[Rigid Body] save");
+		run("MultiStackReg", "stack_1=[Concatenated Stacks1] action_1=[Load Transformation File] file_1=["+dest+"_TransformationMatrices1.txt] stack_2=None action_2=Ignore file_2=[] transformation=[Rigid Body]"); 
+		}
+		else{
+		run("MultiStackReg", "stack_1=[Concatenated Stacks1] action_1=Align file_1=["+dest+"_TransformationMatrices2.txt] stack_2=None action_2=Ignore file_2=[] transformation=[Rigid Body] save");
+		run("MultiStackReg", "stack_1=[Concatenated Stacks] action_1=[Load Transformation File] file_1=["+dest+"_TransformationMatrices2.txt] stack_2=None action_2=Ignore file_2=[] transformation=[Rigid Body]"); 
+		}
+		//mearging chanels
+		run("Merge Channels...", "c1=[Concatenated Stacks] c2=[Concatenated Stacks1] create");
+		//save image
+		saveAs("Tiff", dest + "_CompositeRegistred.tif");
+		close();
+	}
+	 setBatchMode(false); 
+	 run("Quit");
+	
+}
